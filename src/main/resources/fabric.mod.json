@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "papaping",
+  "version": "${version}",
+  "name": "PapaPing",
+  "description": "Team location pings for CosmicPrisons — in-world beacons and HUD markers with skin headshots and live health, per-planet teams, nearest-mine distances, and a client-side chat alert. Reads no Cosmic data; pings are shared through the mod's own team server.",
+  "authors": ["PapaPing"],
+  "contact": {
+    "homepage": "https://github.com/bodieusc/papaping-mod",
+    "sources": "https://github.com/bodieusc/papaping-mod",
+    "issues": "https://github.com/bodieusc/papaping-mod/issues"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.papaping.PapaPing"],
+    "client": ["com.papaping.PapaPingClient"]
+  },
+  "mixins": [
+    "papaping.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

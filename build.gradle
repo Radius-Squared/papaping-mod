@@ -1,0 +1,78 @@
+plugins {
+    id 'fabric-loom' version '1.14.10'
+    id 'java'
+}
+
+// ---- Version tracking ----------------------------------------------------
+// mod_version (in gradle.properties) is the semantic version you bump by hand.
+// Dev builds append an auto-incrementing build number so each jar is uniquely
+// named/ordered (e.g. papaping-1.0.0+build.7.jar); the counter lives in
+// version.properties. A RELEASE build (./gradlew build -Prelease) uses the clean
+// production version (e.g. 1.0.0) and does not touch the counter.
+def isRelease = project.hasProperty("release")
+def versionPropsFile = file("version.properties")
+def buildNumber = 0
+if (versionPropsFile.exists()) {
+    def props = new Properties()
+    versionPropsFile.withInputStream { props.load(it) }
+    buildNumber = ((props.getProperty("build") ?: "0") as int)
+}
+def producesJar = gradle.startParameter.taskNames.any { t ->
+    ["build", "assemble", "jar", "remapJar"].any { t == it || t.endsWith(":" + it) }
+}
+if (producesJar && !isRelease) {
+    buildNumber += 1
+    versionPropsFile.text = "build=${buildNumber}\n"
+}
+
+version = isRelease ? project.mod_version : "${project.mod_version}+build.${buildNumber}"
+logger.lifecycle("PapaPing version ${version}${isRelease ? ' (release)' : ''}")
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+// Print the current version:  ./gradlew printVersion
+tasks.register("printVersion") {
+    doLast { println version }
+}
+
+repositories {
+    // Loom adds the Fabric + Mojang repositories automatically.
+    // The CosmicPrisons mod registry, for the auto-updater library.
+    maven { url = "https://mods.cosmicprisons.com/maven" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Keeps players on the latest APPROVED registry build. This is the one piece of self-updating
+    // code the registry allows, and only unmodified: the build worker hashes the nested copy
+    // against the published releases, so it must come from the registry maven, not a local jar.
+    include "com.cosmicprisons:cosmic-updater:${project.cosmic_updater_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}

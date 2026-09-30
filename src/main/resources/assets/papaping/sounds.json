@@ -1,0 +1,8 @@
+{
+  "ping": {
+    "subtitle": "PapaPing ping",
+    "sounds": [
+      "papaping:ping"
+    ]
+  }
+}
