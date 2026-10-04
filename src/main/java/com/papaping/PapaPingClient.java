@@ -54,7 +54,8 @@ public class PapaPingClient implements ClientModInitializer {
         // The planet comes from the Cosmic API handshake (serverScope on the resolve reply), so
         // there is nothing to read out of chat. PlanetState tells us when it actually changed.
         com.papaping.cosmic.CosmicApi.init();
-        com.papaping.cosmic.CosmicApi.onPlanetChanged(planet -> {
+        // One place to react to a planet change, whether the server assigned it or the player did.
+        com.papaping.chat.PlanetState.onChanged(planet -> {
             if (SOCKET != null) SOCKET.updatePlanet(planet);
             com.papaping.chat.MineData.fetch(planet); // refresh mine coords for the new planet
         });

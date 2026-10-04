@@ -41,7 +41,6 @@ public final class CosmicApi {
     /** The channel is announced a few ticks after join, so keep trying for a short while. */
     private static final int MAX_HELLO_ATTEMPTS = 100;
 
-    private static volatile java.util.function.Consumer<String> planetListener = null;
     private static volatile String sessionId = null;
     private static volatile boolean helloSent = false;
     private static int attempts = 0;
@@ -49,11 +48,6 @@ public final class CosmicApi {
     private CosmicApi() {}
 
     public static String sessionId() { return sessionId; }
-
-    /** Called when the server reports a planet we were not already on. */
-    public static void onPlanetChanged(java.util.function.Consumer<String> listener) {
-        planetListener = listener;
-    }
 
     public static void init() {
         PayloadTypeRegistry.playC2S().register(CosmicApiRawPayload.ID, CosmicApiRawPayload.CODEC);
@@ -71,6 +65,8 @@ public final class CosmicApi {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             helloSent = false;
             sessionId = null;
+            // The next server tells us its own planet; until it does, the player decides again.
+            PlanetState.clearServerAssignment();
         });
     }
 
@@ -114,16 +110,23 @@ public final class CosmicApi {
                 case "resolve" -> {
                     boolean allowed = o.has("allowed") && o.get("allowed").getAsBoolean();
                     sessionId = allowed && o.has("sessionId") ? o.get("sessionId").getAsString() : null;
-                    if (!allowed) {
-                        LOG.warn("Cosmic API session denied: {}",
-                            o.has("reason") ? o.get("reason").getAsString() : "no reason given");
-                    }
-                    // The planet, straight from the server, instead of guessing at chat lines.
-                    if (o.has("serverScope") && !o.get("serverScope").isJsonNull()) {
-                        if (PlanetState.setServerScope(o.get("serverScope").getAsString())) {
-                            java.util.function.Consumer<String> l = planetListener;
-                            if (l != null) l.accept(PlanetState.current());
-                        }
+                    String scope = o.has("serverScope") && !o.get("serverScope").isJsonNull()
+                        ? o.get("serverScope").getAsString() : null;
+                    // Logged in full on purpose: whether a mod that requests no scopes still gets a
+                    // session and a serverScope is the one thing the docs do not spell out, and the
+                    // planet routing depends on it. This line is the evidence.
+                    LOG.info("Cosmic API resolve: event={} allowed={} session={} serverScope={} testing={}{}",
+                        o.has("event") ? o.get("event").getAsString() : "?",
+                        allowed,
+                        sessionId != null ? "granted" : "none",
+                        scope != null ? scope : "(absent)",
+                        o.has("testingMode") && o.get("testingMode").getAsBoolean(),
+                        allowed ? "" : " reason=" + (o.has("reason") ? o.get("reason").getAsString() : "unstated"));
+                    if (scope != null) {
+                        PlanetState.setServerScope(scope);   // PlanetState notifies on a real change
+                    } else {
+                        LOG.warn("No serverScope on the resolve — the planet stays on {} "
+                               + "and the player can change it in the PapaPing menu.", PlanetState.current());
                     }
                 }
                 case "error" -> LOG.warn("Cosmic API error: {}",

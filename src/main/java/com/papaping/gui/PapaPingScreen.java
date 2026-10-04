@@ -74,8 +74,34 @@ public class PapaPingScreen extends Screen {
             case SETTINGS -> initSettings(cfg, px, pw);
         }
 
+        addPlanetControl(px, py);
+
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
             .dimensions(this.width / 2 - 50, py + panelH() - 24, 100, 18).build());
+    }
+
+    /**
+     * Which planet the mod thinks you are on. Normally the server says so on the API handshake and
+     * this is just a read-out. When it has not said so — a server without the Cosmic API, or an app
+     * still in testing that this player is not a tester for — the button cycles, so nobody is stuck
+     * pinging a team on the wrong planet with no way to fix it.
+     */
+    private void addPlanetControl(int px, int py) {
+        boolean fixed = com.papaping.chat.PlanetState.isFromServer();
+        String label = "Planet: §b" + planetLabel() + (fixed ? "" : " §7▸");
+        ButtonWidget b = ButtonWidget.builder(Text.literal(label), btn -> {
+            com.papaping.chat.PlanetState.cycleManual();
+            members = null; invites = null;   // the team is per-planet, so reload for the new one
+            refreshMembers();
+            clearAndInit();
+        }).dimensions(px + 12, py + panelH() - 24, 100, 18)
+          .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(fixed
+              ? "The server told us which planet you are on, so this cannot be changed."
+              : "The server has not told us which planet you are on. Click to switch.\n"
+              + "Your team is per-planet, so this picks which team a ping goes to.")))
+          .build();
+        b.active = !fixed;
+        addDrawableChild(b);
     }
 
     private void addTab(String label, int x, int y, int w, Tab which) {
