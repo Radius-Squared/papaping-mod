@@ -8,7 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Persisted settings (config/papaping.json). Modeled on the CosmicPings settings set:
@@ -221,11 +223,31 @@ public class PapaPingConfig {
         if (lastPlanet == null || lastPlanet.isBlank()) lastPlanet = "Aether";
     }
 
+    /**
+     * Write the config atomically.
+     *
+     * <p>Two clients launched from the same game directory share this file, and a plain write
+     * truncates it before filling it in — so the other client, reading at startup, could see an
+     * empty or half-written file and fall back to defaults. Writing a temporary file and moving it
+     * into place means a reader always sees one whole version or the other.
+     */
     public void save() {
+        Path target = path();
+        Path tmp = null;
         try {
-            Files.writeString(path(), GSON.toJson(this));
+            Files.createDirectories(target.getParent());
+            tmp = Files.createTempFile(target.getParent(), "papaping", ".tmp");
+            Files.writeString(tmp, GSON.toJson(this));
+            try {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING); // best effort elsewhere
+            }
+            tmp = null;
         } catch (IOException e) {
             LOG.warn("Failed to write config", e);
+        } finally {
+            if (tmp != null) try { Files.deleteIfExists(tmp); } catch (IOException ignored) { }
         }
     }
 }
