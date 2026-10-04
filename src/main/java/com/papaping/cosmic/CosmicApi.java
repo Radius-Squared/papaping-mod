@@ -35,7 +35,7 @@ public final class CosmicApi {
      * Public app identity from the developer dashboard. It authorizes nothing on its own — it only
      * selects the app record — so it is safe to ship. Set this to the clientId the dashboard issues.
      */
-    public static final String CLIENT_ID = "REPLACE_WITH_DASHBOARD_CLIENT_ID";
+    public static final String CLIENT_ID = "client_mut7h0q1yt4tv999od";
 
     private static final int PROTOCOL_VERSION = 1;
     /** The channel is announced a few ticks after join, so keep trying for a short while. */
